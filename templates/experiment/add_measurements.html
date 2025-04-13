@@ -1,0 +1,251 @@
+{% extends 'experiment/base.html' %}
+
+{% block title %}Добавление измерений - Физическая лаборатория{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function () {
+        // Добавление новой точки измерения
+        $('#add-measurement').click(function (e) {
+            e.preventDefault();
+
+            // Получаем текущее количество форм
+            var formCount = parseInt($('#id_measurements-TOTAL_FORMS').val());
+
+            // Клонируем первую форму
+            var newForm = $('.measurement-form-row:first').clone(true);
+
+            // Обновляем атрибуты и ID
+            newForm.find(':input').each(function () {
+                var name = $(this).attr('name');
+                if (name) {
+                    name = name.replace('-0-', '-' + formCount + '-');
+                    $(this).attr('name', name);
+                }
+
+                var id = $(this).attr('id');
+                if (id) {
+                    id = id.replace('-0-', '-' + formCount + '-');
+                    $(this).attr('id', id);
+                }
+
+                // Очищаем значение
+                $(this).val('');
+            });
+
+            // Обновляем лейблы
+            newForm.find('label').each(function () {
+                var forAttr = $(this).attr('for');
+                if (forAttr) {
+                    forAttr = forAttr.replace('-0-', '-' + formCount + '-');
+                    $(this).attr('for', forAttr);
+                }
+            });
+
+            // Добавляем новую форму
+            $('#measurement-formset').append(newForm);
+
+            // Обновляем счетчик форм
+            $('#id_measurements-TOTAL_FORMS').val(formCount + 1);
+        });
+
+        // Удаление точки измерения
+        $('.remove-measurement').click(function (e) {
+            e.preventDefault();
+
+            // Получаем текущее количество форм
+            var formCount = parseInt($('#id_measurements-TOTAL_FORMS').val());
+
+            // Не удаляем последнюю форму
+            if (formCount > 1) {
+                $(this).closest('.measurement-form-row').remove();
+
+                // Обновляем счетчик форм
+                $('#id_measurements-TOTAL_FORMS').val(formCount - 1);
+
+                // Обновляем индексы оставшихся форм
+                $('.measurement-form-row').each(function (index) {
+                    $(this).find(':input').each(function () {
+                        var name = $(this).attr('name');
+                        if (name) {
+                            name = name.replace(/-\d+-/, '-' + index + '-');
+                            $(this).attr('name', name);
+                        }
+
+                        var id = $(this).attr('id');
+                        if (id) {
+                            id = id.replace(/-\d+-/, '-' + index + '-');
+                            $(this).attr('id', id);
+                        }
+                    });
+
+                    $(this).find('label').each(function () {
+                        var forAttr = $(this).attr('for');
+                        if (forAttr) {
+                            forAttr = forAttr.replace(/-\d+-/, '-' + index + '-');
+                            $(this).attr('for', forAttr);
+                        }
+                    });
+                });
+            } else {
+                alert('Должна быть хотя бы одна точка измерения.');
+            }
+        });
+
+        // Переключение между вкладками
+        $('#measurement-tabs a').on('click', function (e) {
+            e.preventDefault();
+            $(this).tab('show');
+        });
+    });
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h3><i class="fas fa-flask me-2"></i>{{ experiment.title }}</h3>
+            <div>
+                <a href="{% url 'team_experiments' team_id=experiment.team.id %}" class="btn btn-outline-primary">
+                    <i class="fas fa-arrow-left me-1"></i>Назад к экспериментам
+                </a>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0"><i class="fas fa-ruler me-2"></i>Добавление измерений</h4>
+            </div>
+            <div class="card-body">
+                <p class="mb-4">Добавьте точки измерения зависимости координаты от времени для свободного падения. Вы
+                    можете ввести данные вручную или загрузить CSV файл.</p>
+
+                <ul class="nav nav-tabs mb-4" id="measurement-tabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <a class="nav-link active" id="manual-tab" data-bs-toggle="tab" href="#manual" role="tab"
+                            aria-controls="manual" aria-selected="true">
+                            <i class="fas fa-edit me-1"></i>Ручной ввод
+                        </a>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <a class="nav-link" id="upload-tab" data-bs-toggle="tab" href="#upload" role="tab"
+                            aria-controls="upload" aria-selected="false">
+                            <i class="fas fa-file-upload me-1"></i>Загрузка файла
+                        </a>
+                    </li>
+                </ul>
+
+                <div class="tab-content" id="myTabContent">
+                    <!-- Вкладка ручного ввода -->
+                    <div class="tab-pane fade show active" id="manual" role="tabpanel" aria-labelledby="manual-tab">
+                        <form method="post">
+                            {% csrf_token %}
+
+                            {{ formset.management_form }}
+
+                            <div class="row mb-2">
+                                <div class="col-md-5">
+                                    <label class="form-label fw-bold">Время (с)</label>
+                                </div>
+                                <div class="col-md-5">
+                                    <label class="form-label fw-bold">Положение (м)</label>
+                                </div>
+                                <div class="col-md-2"></div>
+                            </div>
+
+                            <div id="measurement-formset">
+                                {% for form in formset %}
+                                <div class="measurement-form-row row mb-3 align-items-end">
+                                    <div class="col-md-5">
+                                        {{ form.time }}
+                                        {% if form.time.errors %}
+                                        <div class="text-danger mt-1">
+                                            {% for error in form.time.errors %}
+                                            {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-md-5">
+                                        {{ form.position }}
+                                        {% if form.position.errors %}
+                                        <div class="text-danger mt-1">
+                                            {% for error in form.position.errors %}
+                                            {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-md-2">
+                                        <button class="btn btn-outline-danger remove-measurement">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+
+                            <div class="mb-4">
+                                <button id="add-measurement" class="btn btn-outline-primary">
+                                    <i class="fas fa-plus me-1"></i>Добавить точку
+                                </button>
+                            </div>
+
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                <a href="{% url 'team_experiments' team_id=experiment.team.id %}"
+                                    class="btn btn-secondary me-md-2">Отмена</a>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-1"></i>Сохранить и анализировать
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Вкладка загрузки файла -->
+                    <div class="tab-pane fade" id="upload" role="tabpanel" aria-labelledby="upload-tab">
+                        <form method="post" enctype="multipart/form-data">
+                            {% csrf_token %}
+
+                            <div class="mb-4">
+                                <label for="{{ upload_form.file.id_for_label }}" class="form-label">{{
+                                    upload_form.file.label }}</label>
+                                {{ upload_form.file }}
+                                <div class="form-text">{{ upload_form.file.help_text }}</div>
+                                {% if upload_form.file.errors %}
+                                <div class="text-danger mt-1">
+                                    {% for error in upload_form.file.errors %}
+                                    {{ error }}
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="mb-4">
+                                <h5>Формат файла:</h5>
+                                <p>CSV файл должен содержать две колонки, разделенные запятой, точкой с запятой или
+                                    табуляцией:</p>
+                                <pre class="bg-light p-3 rounded">
+время,положение
+0.0,10.0
+0.1,9.5
+0.2,8.8
+...
+                                </pre>
+                            </div>
+
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                <a href="{% url 'team_experiments' team_id=experiment.team.id %}"
+                                    class="btn btn-secondary me-md-2">Отмена</a>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-upload me-1"></i>Загрузить и анализировать
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,141 @@
+{% extends 'experiment/base.html' %}
+
+{% block title %}Редактирование эксперимента - Физическая лаборатория{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function () {
+        $('#add-measurement').click(function (e) {
+            e.preventDefault();
+
+            var formCount = parseInt($('input[name="measurements-TOTAL_FORMS"]').val());
+
+            var newForm = $('.measurement-form-row:first').clone(true);
+
+            newForm.find(':input').each(function () {
+                var name = $(this).attr('name');
+                if (name) {
+                    name = name.replace('measurements-0-', 'measurements-' + formCount + '-');
+                    $(this).attr('name', name);
+                }
+
+                $(this).val('');
+            });
+
+            $('#measurement-formset').append(newForm);
+
+            $('input[name="measurements-TOTAL_FORMS"]').val(formCount + 1);
+        });
+
+        $('.remove-measurement').click(function (e) {
+            e.preventDefault();
+
+            var formCount = parseInt($('input[name="measurements-TOTAL_FORMS"]').val());
+
+            if (formCount > 1) {
+                $(this).closest('.measurement-form-row').remove();
+
+                $('input[name="measurements-TOTAL_FORMS"]').val(formCount - 1);
+            } else {
+                alert('Должна быть хотя бы одна точка измерения.');
+            }
+        });
+    });
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h3><i class="fas fa-flask me-2"></i>{{ experiment.title }}</h3>
+            <div>
+                <a href="{% url 'team_experiments' team_id=experiment.team_id %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>К списку экспериментов
+                </a>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <h4 class="mb-0"><i class="fas fa-ruler me-2"></i>Точки измерения</h4>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="measurements-TOTAL_FORMS" value="{{ measurements|length|default:'1' }}">
+                    <input type="hidden" name="measurements-INITIAL_FORMS"
+                        value="{{ measurements|length|default:'0' }}">
+                    <input type="hidden" name="measurements-MIN_NUM_FORMS" value="0">
+                    <input type="hidden" name="measurements-MAX_NUM_FORMS" value="1000">
+
+                    <div class="row mb-2">
+                        <div class="col-md-5">
+                            <label class="form-label fw-bold">Время (с)</label>
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label fw-bold">Положение (м)</label>
+                        </div>
+                        <div class="col-md-2"></div>
+                    </div>
+
+                    <div id="measurement-formset">
+                        {% if measurements %}
+                        {% for m in measurements %}
+                        <div class="measurement-form-row row mb-3 align-items-end">
+                            <div class="col-md-5">
+                                <input type="number" name="measurements-{{ forloop.counter0 }}-time"
+                                    value="{{ m.time|stringformat:'g' }}" step="0.01" class="form-control"
+                                    placeholder="Время (с)">
+                            </div>
+                            <div class="col-md-5">
+                                <input type="number" name="measurements-{{ forloop.counter0 }}-position"
+                                    value="{{ m.position|stringformat:'g' }}" step="0.01" class="form-control"
+                                    placeholder="Положение (м)">
+                            </div>
+                            <div class="col-md-2">
+                                <button class="btn btn-outline-danger remove-measurement">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        {% else %}
+                        <div class="measurement-form-row row mb-3 align-items-end">
+                            <div class="col-md-5">
+                                <input type="number" name="measurements-0-time" value="" step="0.01"
+                                    class="form-control" placeholder="Время (с)">
+                            </div>
+                            <div class="col-md-5">
+                                <input type="number" name="measurements-0-position" value="" step="0.01"
+                                    class="form-control" placeholder="Положение (м)">
+                            </div>
+                            <div class="col-md-2">
+                                <button class="btn btn-outline-danger remove-measurement">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-4">
+                        <button id="add-measurement" class="btn btn-outline-primary">
+                            <i class="fas fa-plus me-1"></i>Добавить точку
+                        </button>
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="submit" class="btn btn-primary me-md-2">
+                            <i class="fas fa-save me-1"></i>Сохранить
+                        </button>
+                        <button type="submit" name="process" value="1" class="btn btn-success">
+                            <i class="fas fa-chart-line me-1"></i>Обработать данные
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
